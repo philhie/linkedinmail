@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kengo InMail</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">K</span>
+      <span class="brand-name">Kengo InMail</span>
+    </div>
+    <div class="topbar-right">
+      <span id="conn-dot" class="conn-dot" title="Connection status"></span>
+      <button id="open-options" class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
+    </div>
+  </header>
+
+  <section id="needs-setup" class="banner banner-info" hidden>
+    <strong>First-time setup required.</strong>
+    <p>Open <a href="#" id="open-options-link">Settings</a> and configure the Apps Script Web App URL + token.</p>
+  </section>
+
+  <section id="error-banner" class="banner banner-error" hidden>
+    <strong id="error-title">Error</strong>
+    <p id="error-message"></p>
+  </section>
+
+  <section id="target-banner" class="banner banner-warn" hidden>
+    <strong>Daily target reached.</strong>
+    <p>You've sent <span id="banner-count"></span> today. <button id="extend-btn" class="link-btn">Extend by 25</button></p>
+  </section>
+
+  <section id="pending-banner" class="banner banner-info" hidden>
+    <strong>Filling InMail…</strong>
+    <p>Watching the LinkedIn tab for row <span id="pending-row"></span>. Stage: <span id="pending-stage"></span></p>
+  </section>
+
+  <main id="lead-card" class="lead-card" hidden>
+    <div class="lead-row1">
+      <h2 id="lead-name" class="lead-name"></h2>
+      <span id="lead-tier" class="tier-pill"></span>
+    </div>
+    <div class="lead-row2">
+      <span id="lead-title"></span>
+      <span class="dot-sep" aria-hidden="true">·</span>
+      <span id="lead-company"></span>
+    </div>
+    <div class="lead-row3">
+      <code id="lead-domain" class="lead-domain"></code>
+      <span id="lead-score" class="lead-score"></span>
+    </div>
+    <p id="lead-finding" class="lead-finding"></p>
+  </main>
+
+  <section class="tier-row">
+    <label for="tier-select">Tier</label>
+    <select id="tier-select">
+      <option value="All">All</option>
+      <option value="S">S</option>
+      <option value="A">A</option>
+      <option value="B">B</option>
+    </select>
+  </section>
+
+  <section id="inmail-section" class="message-section" hidden>
+    <h3>InMail</h3>
+    <div id="inmail-body" class="message-body"></div>
+  </section>
+
+  <details id="followup-section" class="message-section followup" hidden>
+    <summary>Follow-up</summary>
+    <div id="followup-body" class="message-body"></div>
+  </details>
+
+  <section class="actions">
+    <button id="open-fill-btn" class="btn btn-primary"
+            title="Open the lead's LinkedIn profile and pre-fill the InMail composer. You always click Send manually.">
+      Open Profile + Fill InMail
+    </button>
+    <div class="action-row">
+      <button id="prev-btn" class="btn btn-ghost">‹ Previous</button>
+      <button id="skip-btn" class="btn btn-ghost">Skip</button>
+      <button id="next-btn" class="btn btn-ghost">Next ›</button>
+    </div>
+    <button id="mark-sent-btn" class="btn btn-ok">Mark Sent</button>
+  </section>
+
+  <footer id="footer" class="footer">
+    <span id="progress-text">—/— today · — total</span>
+    <span id="row-text" class="muted">row —</span>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

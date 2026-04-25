@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kengo InMail — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand-mark">K</span>
+    <h1>Kengo InMail Settings</h1>
+  </header>
+
+  <main>
+    <form id="settings-form">
+      <div class="row">
+        <label for="sheet-id">Google Sheet ID</label>
+        <input id="sheet-id" type="text" autocomplete="off"
+               placeholder="1AbC...long-id-from-the-sheet-URL" />
+        <p class="hint">From your sheet URL: <code>docs.google.com/spreadsheets/d/<b>SHEET_ID</b>/edit</code>. Stored locally only.</p>
+      </div>
+
+      <div class="row">
+        <label for="apps-script-url">Apps Script Web App URL</label>
+        <input id="apps-script-url" type="url" autocomplete="off"
+               placeholder="https://script.google.com/macros/s/.../exec" />
+        <p class="hint">From your deployed Apps Script (see setup below).</p>
+      </div>
+
+      <div class="row">
+        <label for="apps-script-token">Shared Secret Token</label>
+        <input id="apps-script-token" type="password" autocomplete="off" />
+        <p class="hint">The same string you put in <code>SECRET_TOKEN</code> in Code.gs.</p>
+      </div>
+
+      <div class="row">
+        <label for="inmail-subject">InMail subject (auto-filled into the composer)</label>
+        <input id="inmail-subject" type="text" autocomplete="off" maxlength="200" />
+        <p class="hint">Same subject for every InMail. You can edit it in the composer before clicking Send. Max 200 characters (LinkedIn's limit).</p>
+      </div>
+
+      <div class="row row-grid">
+        <div>
+          <label for="daily-target">Daily target</label>
+          <input id="daily-target" type="number" min="1" max="1000" />
+        </div>
+        <div>
+          <label for="start-row">Start row</label>
+          <input id="start-row" type="number" min="2" max="100000" />
+        </div>
+        <div>
+          <label for="min-interval">Min seconds between profile opens</label>
+          <input id="min-interval" type="number" min="0" max="600" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="test-btn" class="btn btn-ghost">Test connection</button>
+        <button type="submit" id="save-btn" class="btn btn-primary">Save</button>
+      </div>
+
+      <div id="test-result" class="test-result" hidden></div>
+      <div id="save-result" class="test-result" hidden></div>
+    </form>
+
+    <details class="setup">
+      <summary>Setup walkthrough — Google Apps Script Web App</summary>
+      <ol>
+        <li>Open your <strong>Outreach</strong> Google Sheet.</li>
+        <li>Top menu: <strong>Extensions → Apps Script</strong>.</li>
+        <li>Delete the default <code>function myFunction() { ... }</code> stub. Open the file <code>apps-script/Code.gs</code> from this extension's folder, copy <em>everything</em>, and paste it into the Apps Script editor.</li>
+        <li>At the top, replace <code>SECRET_TOKEN = 'REPLACE_ME_WITH_A_RANDOM_STRING'</code> with a long random string. Copy that same string into the "Shared Secret Token" field above.</li>
+        <li>Click the floppy-disk Save icon.</li>
+        <li>Top right: <strong>Deploy → New deployment</strong>.</li>
+        <li>Click the gear ⚙ icon → choose <strong>Web app</strong>.</li>
+        <li>Settings:
+          <ul>
+            <li>Description: <em>Kengo InMail proxy</em></li>
+            <li>Execute as: <em>Me (your-email@gmail.com)</em></li>
+            <li>Who has access: <em>Anyone</em> ← required (the SECRET_TOKEN gates real access)</li>
+          </ul>
+        </li>
+        <li>Click <strong>Deploy</strong>. Authorize when prompted (it's your own script, so trust it).</li>
+        <li>Copy the <strong>Web app URL</strong>. Looks like <code>https://script.google.com/macros/s/AKfy.../exec</code>. Paste it above.</li>
+        <li>Click <strong>Test connection</strong> here. You should see ✓ Connected.</li>
+        <li>If you ever edit Code.gs: Apps Script → <strong>Deploy → Manage deployments</strong> → pencil → Version: <em>New version</em> → Deploy. URL stays the same.</li>
+      </ol>
+    </details>
+  </main>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

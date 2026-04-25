@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kengo InMail — Icon Generator</title>
+  <style>
+    body {
+      background: #0e1116; color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      padding: 24px; margin: 0;
+    }
+    h1 { font-size: 16px; margin-bottom: 8px; }
+    p  { color: #8b949e; max-width: 640px; line-height: 1.5; }
+    .icons { display: flex; align-items: flex-end; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+    .icon { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .icon canvas { background: transparent; image-rendering: pixelated; }
+    .icon code { background: #161b22; padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <h1>Kengo InMail — Icon Generator</h1>
+  <p>
+    Right-click each canvas → "Save image as…" → save as the suggested filename
+    into <code>icons/</code>. To swap the design (color, glyph, font), edit the
+    <code>draw()</code> function below and reload.
+  </p>
+  <div class="icons">
+    <div class="icon">
+      <canvas id="c16" width="16" height="16" style="width: 64px; height: 64px;"></canvas>
+      <code>icon16.png</code>
+    </div>
+    <div class="icon">
+      <canvas id="c48" width="48" height="48" style="width: 96px; height: 96px;"></canvas>
+      <code>icon48.png</code>
+    </div>
+    <div class="icon">
+      <canvas id="c128" width="128" height="128" style="width: 128px; height: 128px;"></canvas>
+      <code>icon128.png</code>
+    </div>
+  </div>
+
+  <script>
+    const TEAL = "#00D4AA";
+    const FG   = "#06241D";
+
+    function draw(canvas) {
+      const s = canvas.width;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, s, s);
+
+      // Rounded teal square
+      const r = Math.max(2, Math.floor(s / 6));
+      ctx.fillStyle = TEAL;
+      roundRect(ctx, 0, 0, s, s, r);
+      ctx.fill();
+
+      // K glyph
+      ctx.fillStyle = FG;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `700 ${Math.floor(s * 0.72)}px -apple-system, "Helvetica Neue", Arial, sans-serif`;
+      ctx.fillText("K", s / 2, s / 2 + s * 0.02);
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    for (const id of ["c16", "c48", "c128"]) draw(document.getElementById(id));
+  </script>
+</body>
+</html>

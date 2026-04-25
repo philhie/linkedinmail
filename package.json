@@ -1,0 +1,16 @@
+{
+  "name": "kengo-inmail-helper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension to speed up Kengo's LinkedIn Recruiter InMail workflow.",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --ext .js",
+    "test": "node --test 'test/*.test.js'",
+    "check": "find . -name '*.js' -not -path './node_modules/*' -not -path './dist/*' -print0 | xargs -0 -n1 node --check",
+    "zip": "rm -rf dist && mkdir -p dist && zip -r dist/extension.zip . -x '*.git*' 'node_modules/*' 'dist/*' 'test/*' 'package*.json' '.eslintrc*'"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0"
+  }
+}
