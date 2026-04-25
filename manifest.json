@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Kengo InMail Helper",
   "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArjTBsMKnojmm8SwSw5Dr5F3zyeAPbr+XdvR1Vd7U1ZUm5W8cWkXreD9Y+mypw4FXgGmiNj8ZRIcRUa/vaNpSSmscVTm5yEycT/StpgpBheZld/2/nTn3uSNEfBgL+0c8QnEBFUaV9F/UutrH9zWL3ryQO/QeFL2Lgp1R7yz/WFFSpEi5wn+zPwMdTAgLuNZtzOtiRvqkWLNcaubzOP+WCHn8BVTwm10ta0QFx7EMH8vtK0FQaiaZzfJQPa1Ty15vCsIScGkgSm67t1MQ7jJY6QAMKfnRRIDLJyElFd1mNxA0wj9Mb6PwkPoS7j+jrsf0ayBxsB/ypIe2xOidjBvP6QIDAQAB",
   "description": "Send LinkedIn Recruiter InMails faster by pre-filling text from a Google Sheet. You always click Send manually.",
   "permissions": ["storage", "alarms", "tabs", "scripting"],
   "host_permissions": [
