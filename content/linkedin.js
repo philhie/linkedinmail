@@ -589,14 +589,27 @@ function findSendButton(composerScope) {
     // Defensive blacklist — drop Save-as-draft / Schedule / Cancel / etc.
     if (LOCALE.sendButtonBlacklist.test(label + ' ' + text)) continue;
 
-    const matchesLabel = LOCALE.sendButtonTexts.some(t =>
-      label === t || label.toLowerCase() === t.toLowerCase() ||
-      label.toLowerCase().startsWith(t.toLowerCase() + ' ')
-    );
-    const matchesText = LOCALE.sendButtonTexts.some(t =>
-      text === t || text.toLowerCase() === t.toLowerCase() ||
-      text.toLowerCase().startsWith(t.toLowerCase() + ' ')
-    );
+    // aria-label match: exact OR prefix (aria-labels tend to be specific,
+    // so we keep this strict to avoid matching unrelated long-form labels).
+    const labelLow = label.toLowerCase();
+    const matchesLabel = label && LOCALE.sendButtonTexts.some(t => {
+      const tl = t.toLowerCase();
+      return labelLow === tl || labelLow.startsWith(tl + ' ');
+    });
+
+    // Visible-text match: word-boundary substring. LinkedIn's accessibility
+    // pattern wraps a screen-reader description (`.a11y-text`) and a short
+    // visible label (`[aria-hidden="true"]`) inside the same button,
+    // producing innerText like "Diese Nachricht senden Senden". A plain
+    // startsWith never matches because the text begins with the screen-
+    // reader prefix. Word-bounded `\bsenden\b` catches "Senden" at the end
+    // (and "Nachricht senden" mid-string) reliably.
+    const textLow = text.toLowerCase();
+    const matchesText = text && LOCALE.sendButtonTexts.some(t => {
+      const escaped = t.toLowerCase().replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      return new RegExp('\\b' + escaped + '\\b', 'i').test(textLow);
+    });
+
     if (matchesLabel || matchesText) matches.push(btn);
   }
 
