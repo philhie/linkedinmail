@@ -2,17 +2,53 @@
 
 Chrome extension that speeds up LinkedIn Recruiter InMail outreach by reading
 pre-rendered messages from a Google Sheet, opening the LinkedIn profile, and
-pre-filling the InMail composer (and follow-up). **You always click Send manually.**
+pre-filling the InMail composer (and follow-up). **By default you click Send
+yourself**; an opt-in auto-mode (off by default) chains the full cycle —
+click Send, verify success, mark sent, advance to the next person.
 
-Goal: drop 20s/lead → ~5s/lead. Volume target: 100–500 InMails/day.
+Goal: drop 20s/lead → ~5s/lead — and with auto-mode on, drop ~50min/day to
+~5min/day for the same volume. Volume target: 100–500 InMails/day.
 
 ## What this extension does NOT do
 
-- Does **not** auto-send anything. You always click Send yourself.
+- Does **not** auto-send by default. Auto-mode is off out of the box and
+  requires explicit confirmation before it can be enabled.
 - Does **not** scrape LinkedIn or call LinkedIn APIs.
 - Does **not** run in the background. Only when the popup is open or a
   profile is being filled.
 - Does **not** store LinkedIn credentials.
+
+## Auto-mode (opt-in)
+
+Auto-mode is a feature flag (default: **off**). When armed, a successful send
+chains automatically into the next lead. Three modes:
+
+- **Off** — default. Manual flow as today.
+- **Dry-run** — runs the full pipeline (paste, verify composer state, locate
+  Send button) but never clicks Send. Logs telemetry. Use this first to
+  verify selectors against your Recruiter DOM.
+- **On** — live. Clicks Send, handles confirmation modal, watches for success
+  toast, marks sent, advances to next person, schedules next cycle on a
+  jittered cooldown.
+
+Safety surface (when `safetyMode` is on, default true):
+
+- Log-normal jittered interval around `minIntervalSeconds` (σ=30%, clamped
+  to [0.7×, 2.0×]) — breaks metronomic rhythm that LinkedIn flags.
+- 8% chance of a 3–7min long pause between cycles.
+- Hourly cap (default 30/hr).
+- Daily cap = `dailyTarget`.
+- Optional quiet hours (off by default).
+- Hard-stop on negative toast classifier (rate-limit / spam / restriction).
+- Hard-stop on auth challenge / checkpoint / captcha tab navigation.
+- Hard-stop on consecutive errors hitting `errorBackoffThreshold`.
+- Pre-send composer state re-verification (subject + body + follow-up).
+- Send-button selector is composer-scoped + multi-criteria; refuses to
+  click if multiple primary buttons match.
+- Multi-signal success verification: positive toast OR composer-removed.
+
+Toolbar badge reflects state: blank (off), `DRY` (dry-run), `N` (today's
+sends in 'on' mode), `⏸` (paused/backoff), `✗` (last cycle errored).
 
 ## Status
 

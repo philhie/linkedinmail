@@ -241,3 +241,135 @@ body {
   padding-right: 12px;
 }
 .muted { color: var(--muted); }
+
+/* ----- Auto-mode section ----- */
+
+.auto-mode {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.auto-mode-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.auto-mode-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.auto-mode-toggle {
+  display: inline-flex;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.auto-mode-toggle .seg {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+}
+.auto-mode-toggle .seg:last-child { border-right: 0; }
+.auto-mode-toggle .seg:hover { color: var(--text); }
+.auto-mode-toggle .seg.active {
+  background: var(--bg-elev);
+  color: var(--text);
+}
+.auto-mode-toggle .seg.live.active {
+  background: rgba(255, 107, 107, 0.18);
+  color: var(--red);
+  font-weight: 600;
+}
+
+.auto-mode-status {
+  display: flex; align-items: center; gap: 8px;
+}
+.step-pill {
+  flex: 1;
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--bg-elev-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.step-pill.live   { color: var(--teal); border-color: rgba(0, 212, 170, 0.5); background: rgba(0, 212, 170, 0.10); }
+.step-pill.paused { color: var(--amber); border-color: rgba(255, 179, 71, 0.5); background: rgba(255, 179, 71, 0.10); }
+
+.btn-mini {
+  font: inherit; font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.btn-mini-warn {
+  background: rgba(255, 179, 71, 0.18);
+  border-color: rgba(255, 179, 71, 0.5);
+  color: var(--amber);
+}
+.btn-mini-ok {
+  background: rgba(63, 185, 80, 0.18);
+  border-color: rgba(63, 185, 80, 0.5);
+  color: var(--green);
+}
+
+.recent-sends summary {
+  cursor: pointer;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  user-select: none;
+}
+.recent-sends ul {
+  list-style: none;
+  padding: 6px 0 0;
+  margin: 0;
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 130px;
+  overflow-y: auto;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.recent-sends .evt          { color: var(--muted); }
+.recent-sends .evt-ok       { color: var(--green); }
+.recent-sends .evt-fail     { color: var(--red); }
+.recent-sends .evt-skip     { color: var(--amber); }
+
+/* First-run confirmation dialog */
+.confirm-dialog {
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  max-width: 320px;
+}
+.confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+.confirm-form h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.confirm-form p { margin: 6px 0; font-size: 12px; }
+.confirm-form ul { font-size: 12px; padding-left: 18px; margin: 6px 0; }
+.confirm-form ul li { margin-bottom: 4px; }
+.confirm-form menu {
+  display: flex; gap: 6px; justify-content: flex-end;
+  margin: 12px 0 0; padding: 0;
+}
+.confirm-form menu .btn { flex: 0 0 auto; padding: 6px 12px; }

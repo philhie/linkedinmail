@@ -44,6 +44,8 @@ main {
 form { display: flex; flex-direction: column; gap: 16px; }
 .row { display: flex; flex-direction: column; gap: 4px; }
 .row-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; cursor: pointer; flex-direction: row !important; }
+.checkbox-row input { margin: 0; width: auto; }
 label { font-size: 12px; color: var(--muted); font-weight: 500; }
 input {
   background: var(--bg-elev);

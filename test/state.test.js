@@ -11,7 +11,14 @@ import {
   activePendingFill,
   loadSettings,
   saveSettings,
+  loadRuntime,
+  saveRuntime,
+  withRuntime,
   migrateTokenStorageOnce,
+  nextExpiryFor,
+  STAGE_TTLS,
+  PENDING_FILL_TTL_MS,
+  SETTINGS_DEFAULTS,
   RUNTIME_DEFAULTS
 } from '../lib/state.js';
 
@@ -196,4 +203,206 @@ test('loadSettings returns defaults when storage empty', async () => {
   assert.equal(s.tierFilter, 'All');
   assert.equal(s.dailyTarget, 100);
   assert.equal(s.inmailSubject, 'kurze frage');
+});
+
+// ---------------- STAGE_TTLS / nextExpiryFor ----------------
+
+test('STAGE_TTLS exposes the static stage TTLs', () => {
+  assert.equal(typeof STAGE_TTLS.await_recruiter, 'number');
+  assert.equal(typeof STAGE_TTLS.await_composer, 'number');
+  assert.equal(typeof STAGE_TTLS.await_send_click, 'number');
+  assert.equal(typeof STAGE_TTLS.await_modal, 'number');
+  assert.equal(typeof STAGE_TTLS.await_success, 'number');
+  assert.equal(typeof STAGE_TTLS.await_advance, 'number');
+  // await_review and cooldown are settings-derived; not in the static map.
+  assert.equal(STAGE_TTLS.await_review, undefined);
+  assert.equal(STAGE_TTLS.cooldown, undefined);
+});
+
+test('PENDING_FILL_TTL_MS legacy alias is exported', () => {
+  // Kept at 90s for backward-compat with the legacy single-TTL callsite.
+  assert.equal(PENDING_FILL_TTL_MS, 90_000);
+});
+
+test('nextExpiryFor returns now + STAGE_TTL for static stages', () => {
+  const now = 1_000_000;
+  assert.equal(nextExpiryFor('await_recruiter', now), now + STAGE_TTLS.await_recruiter);
+  assert.equal(nextExpiryFor('await_composer', now), now + STAGE_TTLS.await_composer);
+  assert.equal(nextExpiryFor('await_send_click', now), now + STAGE_TTLS.await_send_click);
+  assert.equal(nextExpiryFor('await_modal', now), now + STAGE_TTLS.await_modal);
+  assert.equal(nextExpiryFor('await_success', now), now + STAGE_TTLS.await_success);
+  assert.equal(nextExpiryFor('await_advance', now), now + STAGE_TTLS.await_advance);
+});
+
+test('nextExpiryFor("await_review") uses settings.reviewWindowMs + 5s grace', () => {
+  const now = 1_000_000;
+  const settings = { reviewWindowMs: 3000 };
+  assert.equal(nextExpiryFor('await_review', now, { settings }), now + 3000 + 5000);
+});
+
+test('nextExpiryFor("await_review") accepts explicit reviewMs override', () => {
+  const now = 1_000_000;
+  // Explicit reviewMs (e.g. post-jitter) wins over settings.
+  assert.equal(
+    nextExpiryFor('await_review', now, { settings: { reviewWindowMs: 1000 }, reviewMs: 4500 }),
+    now + 4500 + 5000
+  );
+});
+
+test('nextExpiryFor("await_review") falls back to default when settings absent', () => {
+  const now = 1_000_000;
+  // Default reviewWindowMs is 2500.
+  assert.equal(nextExpiryFor('await_review', now), now + 2500 + 5000);
+});
+
+test('nextExpiryFor("cooldown") uses minIntervalSeconds * 2 + 10s grace', () => {
+  const now = 1_000_000;
+  const settings = { minIntervalSeconds: 10 };
+  // 10s base * 2.0 jitter max * 1000 = 20000ms + 10000ms grace = 30000.
+  assert.equal(nextExpiryFor('cooldown', now, { settings }), now + 30_000);
+});
+
+test('nextExpiryFor("cooldown") accepts explicit cooldownMs override', () => {
+  const now = 1_000_000;
+  assert.equal(
+    nextExpiryFor('cooldown', now, { cooldownMs: 45_000 }),
+    now + 45_000 + 10_000
+  );
+});
+
+test('nextExpiryFor unknown stage falls back to await_recruiter ttl', () => {
+  const now = 1_000_000;
+  assert.equal(nextExpiryFor('something_else', now), now + STAGE_TTLS.await_recruiter);
+});
+
+// ---------------- SETTINGS_DEFAULTS / RUNTIME_DEFAULTS ----------------
+
+test('SETTINGS_DEFAULTS contains auto-mode keys', () => {
+  assert.equal(SETTINGS_DEFAULTS.autoMode, 'off');
+  assert.equal(SETTINGS_DEFAULTS.safetyMode, true);
+  assert.equal(SETTINGS_DEFAULTS.reviewWindowMs, 2500);
+  assert.equal(SETTINGS_DEFAULTS.hourlyCap, 30);
+  assert.equal(SETTINGS_DEFAULTS.errorBackoffThreshold, 2);
+  assert.equal(SETTINGS_DEFAULTS.intervalJitterPct, 30);
+  assert.equal(typeof SETTINGS_DEFAULTS.longPauseProb, 'number');
+  assert.equal(SETTINGS_DEFAULTS.quietHoursEnabled, false);
+});
+
+test('RUNTIME_DEFAULTS contains auto-mode keys', () => {
+  assert.equal(RUNTIME_DEFAULTS.lastSentAt, 0);
+  assert.deepEqual(RUNTIME_DEFAULTS.hourlyBuckets, []);
+  assert.equal(RUNTIME_DEFAULTS.consecutiveErrors, 0);
+  assert.equal(RUNTIME_DEFAULTS.lastErrorCode, '');
+  assert.equal(RUNTIME_DEFAULTS.autoPaused, false);
+  assert.equal(RUNTIME_DEFAULTS.autoBackoffPausedAt, 0);
+  assert.equal(RUNTIME_DEFAULTS.lastAutoCycle, null);
+  assert.deepEqual(RUNTIME_DEFAULTS.eventLog, []);
+  assert.equal(RUNTIME_DEFAULTS.sendsSinceCanary, 0);
+  assert.equal(RUNTIME_DEFAULTS.canaryNeeded, true);
+});
+
+test('loadSettings merges new auto-mode defaults over empty storage', async () => {
+  resetChrome();
+  const s = await loadSettings();
+  assert.equal(s.autoMode, 'off');
+  assert.equal(s.safetyMode, true);
+});
+
+test('loadRuntime merges new auto-mode defaults over empty storage', async () => {
+  resetChrome();
+  const r = await loadRuntime();
+  assert.equal(r.lastSentAt, 0);
+  assert.equal(r.canaryNeeded, true);
+  assert.deepEqual(r.hourlyBuckets, []);
+});
+
+// ---------------- saveRuntime / withRuntime serialization ----------------
+
+test('saveRuntime serializes overlapping writes (last write wins on overlap)', async () => {
+  resetChrome();
+  // Two writes in flight; serialization queue ensures the second runs after
+  // the first. For chrome.storage.local the merge is shallow, so a key written
+  // twice ends up with the second value.
+  const p1 = saveRuntime({ dailyCount: 5 });
+  const p2 = saveRuntime({ dailyCount: 7 });
+  await Promise.all([p1, p2]);
+  const r = await loadRuntime();
+  assert.equal(r.dailyCount, 7);
+});
+
+test('saveRuntime serializes non-overlapping writes (both visible)', async () => {
+  resetChrome();
+  const p1 = saveRuntime({ dailyCount: 1 });
+  const p2 = saveRuntime({ lastError: 'boom' });
+  await Promise.all([p1, p2]);
+  const r = await loadRuntime();
+  assert.equal(r.dailyCount, 1);
+  assert.equal(r.lastError, 'boom');
+});
+
+test('withRuntime increments a counter atomically across concurrent calls', async () => {
+  resetChrome();
+  // 10 concurrent increments — without the mutex these would race.
+  const ops = [];
+  for (let i = 0; i < 10; i++) {
+    ops.push(withRuntime((rt) => ({ dailyCount: (rt.dailyCount || 0) + 1 })));
+  }
+  await Promise.all(ops);
+  const r = await loadRuntime();
+  assert.equal(r.dailyCount, 10);
+});
+
+test('withRuntime appends to an array atomically', async () => {
+  resetChrome();
+  const ops = [];
+  for (let i = 0; i < 5; i++) {
+    ops.push(withRuntime((rt) => ({
+      dailySentRows: [...(rt.dailySentRows || []), i + 100]
+    })));
+  }
+  await Promise.all(ops);
+  const r = await loadRuntime();
+  assert.equal(r.dailySentRows.length, 5);
+  // All 100..104 should be present (set semantics, order not asserted).
+  const set = new Set(r.dailySentRows);
+  for (let i = 0; i < 5; i++) assert.ok(set.has(i + 100), `row ${i + 100} missing`);
+});
+
+test('withRuntime: mutator returning null is a no-op (no write)', async () => {
+  resetChrome();
+  await saveRuntime({ dailyCount: 42 });
+  await withRuntime(() => null);
+  const r = await loadRuntime();
+  assert.equal(r.dailyCount, 42);
+});
+
+test('withRuntime: mutator throwing leaves storage untouched and queue unblocked', async () => {
+  resetChrome();
+  await saveRuntime({ dailyCount: 1 });
+  await assert.rejects(
+    () => withRuntime(() => { throw new Error('boom'); }),
+    /boom/
+  );
+  // Queue should still accept subsequent writes after the rejection.
+  await withRuntime((rt) => ({ dailyCount: (rt.dailyCount || 0) + 1 }));
+  const r = await loadRuntime();
+  assert.equal(r.dailyCount, 2);
+});
+
+test('withRuntime serializes async mutators (no interleaving)', async () => {
+  resetChrome();
+  await saveRuntime({ dailyCount: 0 });
+  // Two mutators that "await something" mid-flight; the serialization should
+  // still ensure each sees the previous one's write before computing.
+  const ops = [];
+  for (let i = 0; i < 5; i++) {
+    ops.push(withRuntime(async (rt) => {
+      // micro-yield to maximize overlap risk
+      await new Promise((r) => setImmediate(r));
+      return { dailyCount: (rt.dailyCount || 0) + 1 };
+    }));
+  }
+  await Promise.all(ops);
+  const r = await loadRuntime();
+  assert.equal(r.dailyCount, 5);
 });
