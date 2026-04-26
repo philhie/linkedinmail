@@ -1,5 +1,5 @@
 // @ts-check
-import { friendlyError, humanStage } from '../lib/errors.js';
+import { friendlyError, humanStage, stageStep } from '../lib/errors.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
@@ -32,9 +32,49 @@ function wireEvents() {
 
   $('open-fill-btn').addEventListener('click', () => send({ type: 'OPEN_AND_FILL' }));
 
+  // Auto-mode toggle (3 segments). Off → no confirmation. Anything else →
+  // first-time confirmation dialog (settings.autoModeAcknowledgedAt gates it).
+  document.querySelectorAll('#auto-mode-section .seg').forEach((el) => {
+    el.addEventListener('click', () => onAutoModeClick(el.getAttribute('data-mode') || 'off'));
+  });
+  $('pause-auto-btn').addEventListener('click', () => send({ type: 'PAUSE_AUTO' }));
+  $('resume-auto-btn').addEventListener('click', () => send({ type: 'RESUME_AUTO' }));
+
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg && msg.type === 'STATE_UPDATED') render(msg.state);
   });
+}
+
+/** @param {string} mode */
+async function onAutoModeClick(mode) {
+  if (!lastState) return;
+  // No-op if already in this mode.
+  if (lastState.autoMode === mode) return;
+
+  // First-time enabling: show the risk-acknowledgment dialog.
+  if (mode !== 'off' && !lastState.autoModeAcknowledgedAt) {
+    const dialog = /** @type {HTMLDialogElement} */ ($('auto-mode-confirm-dialog'));
+    dialog.returnValue = '';
+    dialog.showModal();
+    await new Promise((resolve) => {
+      dialog.addEventListener('close', resolve, { once: true });
+    });
+    if (dialog.returnValue !== 'ok') return; // user cancelled
+  }
+
+  // Toggling Off mid-cycle: confirm via <dialog> so accidental clicks don't
+  // silently kill an in-flight chain.
+  if (mode === 'off' && lastState.pendingFill && lastState.autoMode !== 'off') {
+    const dialog = /** @type {HTMLDialogElement} */ ($('auto-mode-off-dialog'));
+    dialog.returnValue = '';
+    dialog.showModal();
+    await new Promise((resolve) => {
+      dialog.addEventListener('close', resolve, { once: true });
+    });
+    if (dialog.returnValue !== 'ok') return;
+  }
+
+  await send({ type: 'SET_AUTO_MODE', mode });
 }
 
 /** @param {object} message */
@@ -102,20 +142,29 @@ function render(state) {
     targetBanner.hidden = true;
   }
 
-  // Pending fill banner (Phase 2 multi-stage)
+  // Pending fill banner — now shows step N/9 from the pipeline.
   const pendingBanner = $('pending-banner');
+  const canaryBanner = $('canary-banner');
   if (state.pendingFill) {
     pendingBanner.hidden = false;
     $('pending-row').textContent = String(state.pendingFill.row);
-    $('pending-stage').textContent = humanStage(state.pendingFill.stage);
+    const step = stageStep(state.pendingFill.stage);
+    const stepLabel = step > 0 ? `step ${step}/9 — ` : '';
+    $('pending-stage').textContent = stepLabel + humanStage(state.pendingFill.stage);
+    // Canary banner is mutually-exclusive with the regular pending banner.
+    canaryBanner.hidden = !state.pendingFill.canary;
   } else {
     pendingBanner.hidden = true;
+    canaryBanner.hidden = true;
   }
 
   // Tier dropdown
   /** @type {HTMLSelectElement} */
   const tierSelect = /** @type {HTMLSelectElement} */ ($('tier-select'));
   if (tierSelect.value !== state.tierFilter) tierSelect.value = state.tierFilter;
+
+  // Auto-mode section
+  renderAutoMode(state);
 
   // Lead card
   const lead = state.lead;
@@ -177,6 +226,73 @@ function render(state) {
   } else if (state.targetReached) {
     $('open-fill-btn').setAttribute('title', 'Daily target reached.');
   } else {
-    $('open-fill-btn').setAttribute('title', 'Open the LinkedIn profile and pre-fill the InMail composer. You always click Send manually.');
+    $('open-fill-btn').setAttribute('title', 'Open the LinkedIn profile and pre-fill the InMail composer.');
+  }
+}
+
+/** @param {any} state */
+function renderAutoMode(state) {
+  const mode = String(state.autoMode || 'off');
+  const isLive = mode === 'on';
+  const isArmed = mode !== 'off';
+
+  // Highlight the active segment.
+  document.querySelectorAll('#auto-mode-section .seg').forEach((el) => {
+    const m = el.getAttribute('data-mode');
+    el.classList.toggle('active', m === mode);
+    el.classList.toggle('live', m === 'on' && mode === 'on');
+  });
+
+  // Status row: step pill + pause/resume buttons
+  const status = $('auto-mode-status');
+  const stepEl = $('auto-mode-step');
+  const pauseBtn = $('pause-auto-btn');
+  const resumeBtn = $('resume-auto-btn');
+
+  if (!isArmed) {
+    status.hidden = true;
+  } else {
+    status.hidden = false;
+    let text = mode === 'dry_run' ? 'Dry-run armed' : 'Auto-mode armed';
+    if (state.autoPaused) text = 'Paused';
+    else if (state.autoBackoffPausedAt) text = 'Auto-backoff (errors)';
+    else if (state.pendingFill) {
+      const step = stageStep(state.pendingFill.stage);
+      const label = humanStage(state.pendingFill.stage);
+      text = step > 0 ? `step ${step}/9 — ${label}` : label || text;
+    }
+    stepEl.textContent = text;
+    stepEl.className = 'step-pill';
+    if (state.autoPaused || state.autoBackoffPausedAt) stepEl.classList.add('paused');
+    else if (isLive) stepEl.classList.add('live');
+
+    // Pause when armed + not paused; Resume when paused or backoff.
+    const showPause  = isArmed && !state.autoPaused && !state.autoBackoffPausedAt;
+    const showResume = state.autoPaused || state.autoBackoffPausedAt > 0;
+    pauseBtn.hidden  = !showPause;
+    resumeBtn.hidden = !showResume;
+  }
+
+  // Recent sends
+  const recent = $('recent-sends');
+  const list = $('recent-sends-list');
+  const events = Array.isArray(state.recentEvents) ? state.recentEvents : [];
+  if (events.length === 0) {
+    recent.hidden = true;
+  } else {
+    recent.hidden = false;
+    list.innerHTML = '';
+    for (let i = events.length - 1; i >= 0; i--) {
+      const e = events[i];
+      const li = document.createElement('li');
+      const when = new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const row = (typeof e.row === 'number') ? `row ${e.row}` : '—';
+      const action = e.action || '?';
+      const errStr = e.errorCode ? ` · ${e.errorCode}` : '';
+      const sigStr = e.signal ? ` · ${e.signal}` : '';
+      li.textContent = `${when} · ${row} · ${action}${sigStr}${errStr}`;
+      li.className = `evt evt-${e.outcome || 'ok'}`;
+      list.appendChild(li);
+    }
   }
 }

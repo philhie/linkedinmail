@@ -8,11 +8,14 @@
   "host_permissions": [
     "https://script.google.com/*",
     "https://script.googleusercontent.com/*",
-    "https://www.linkedin.com/*"
+    "https://*.linkedin.com/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/talent/*", "https://www.linkedin.com/in/*"],
+      "matches": [
+        "https://*.linkedin.com/talent/*",
+        "https://*.linkedin.com/in/*"
+      ],
       "js": ["content/linkedin.js"],
       "run_at": "document_idle"
     }

@@ -54,6 +54,65 @@
         </div>
       </div>
 
+      <details class="setup">
+        <summary>Auto-mode advanced settings</summary>
+        <p class="hint">Tunes the auto-mode pipeline. Defaults are conservative; only adjust if you understand the tradeoffs. Auto-mode itself is enabled in the popup.</p>
+
+        <div class="row row-grid">
+          <div>
+            <label for="hourly-cap">Hourly send cap</label>
+            <input id="hourly-cap" type="number" min="1" max="200" />
+          </div>
+          <div>
+            <label for="interval-jitter">Jitter ±% on interval</label>
+            <input id="interval-jitter" type="number" min="0" max="100" />
+          </div>
+          <div>
+            <label for="error-backoff">Error backoff threshold</label>
+            <input id="error-backoff" type="number" min="1" max="10" />
+          </div>
+        </div>
+
+        <div class="row row-grid">
+          <div>
+            <label for="review-window">Review dwell (ms)</label>
+            <input id="review-window" type="number" min="500" max="30000" step="100" />
+          </div>
+          <div>
+            <label for="long-pause-prob">Long-pause probability (0–1)</label>
+            <input id="long-pause-prob" type="number" min="0" max="1" step="0.01" />
+          </div>
+          <div>
+            <label for="canary-every">Canary every N sends</label>
+            <input id="canary-every" type="number" min="1" max="1000" />
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="checkbox-row">
+            <input id="safety-mode" type="checkbox" />
+            <span>Safety mode (long-pauses, hourly cap, watch-for-warning) — recommended</span>
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="checkbox-row">
+            <input id="quiet-hours-enabled" type="checkbox" />
+            <span>Pause auto-mode during quiet hours</span>
+          </label>
+          <div class="row-grid" style="margin-top:6px;">
+            <div>
+              <label for="quiet-start">Quiet from (hour, 0–23)</label>
+              <input id="quiet-start" type="number" min="0" max="23" />
+            </div>
+            <div>
+              <label for="quiet-end">Quiet until (hour, 0–23)</label>
+              <input id="quiet-end" type="number" min="0" max="23" />
+            </div>
+          </div>
+        </div>
+      </details>
+
       <div class="actions">
         <button type="button" id="test-btn" class="btn btn-ghost">Test connection</button>
         <button type="submit" id="save-btn" class="btn btn-primary">Save</button>

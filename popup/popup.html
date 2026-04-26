@@ -37,6 +37,11 @@
     <p>Watching the LinkedIn tab for row <span id="pending-row"></span>. Stage: <span id="pending-stage"></span></p>
   </section>
 
+  <section id="canary-banner" class="banner banner-warn" hidden>
+    <strong>Canary cycle — click Send manually</strong>
+    <p>We won't auto-click on this cycle so you can verify success-detection. Click <strong>Send</strong> in LinkedIn now; we're watching for the toast.</p>
+  </section>
+
   <main id="lead-card" class="lead-card" hidden>
     <div class="lead-row1">
       <h2 id="lead-name" class="lead-name"></h2>
@@ -63,6 +68,54 @@
       <option value="B">B</option>
     </select>
   </section>
+
+  <section id="auto-mode-section" class="auto-mode">
+    <div class="auto-mode-row">
+      <span class="auto-mode-label">Auto-mode</span>
+      <div class="auto-mode-toggle" role="radiogroup" aria-label="Auto-mode">
+        <button type="button" class="seg" data-mode="off"     role="radio">Off</button>
+        <button type="button" class="seg" data-mode="dry_run" role="radio">Dry-run</button>
+        <button type="button" class="seg" data-mode="on"      role="radio">On</button>
+      </div>
+    </div>
+    <div id="auto-mode-status" class="auto-mode-status" hidden>
+      <span id="auto-mode-step" class="step-pill"></span>
+      <button id="pause-auto-btn"  type="button" class="btn-mini btn-mini-warn"  hidden>Pause</button>
+      <button id="resume-auto-btn" type="button" class="btn-mini btn-mini-ok"    hidden>Resume</button>
+    </div>
+    <details id="recent-sends" class="recent-sends" hidden>
+      <summary>Recent activity</summary>
+      <ul id="recent-sends-list"></ul>
+    </details>
+  </section>
+
+  <dialog id="auto-mode-confirm-dialog" class="confirm-dialog">
+    <form method="dialog" class="confirm-form">
+      <h3>Enable auto-mode?</h3>
+      <p>Auto-mode clicks LinkedIn's <strong>Send</strong> button for you. This is account-risk territory.</p>
+      <ul>
+        <li>Start with <strong>Dry-run</strong> first to verify selectors against your DOM.</li>
+        <li>Auto-mode pauses for the day if LinkedIn shows a rate-limit toast or auth challenge.</li>
+        <li>You can stop at any time using the Pause button.</li>
+      </ul>
+      <p>Continue?</p>
+      <menu>
+        <button value="cancel" class="btn btn-ghost">Cancel</button>
+        <button value="ok"     class="btn btn-primary">I understand — enable</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="auto-mode-off-dialog" class="confirm-dialog">
+    <form method="dialog" class="confirm-form">
+      <h3>Turn auto-mode off?</h3>
+      <p>An auto-cycle is in progress. Turning off will cancel it and clear the pending row.</p>
+      <menu>
+        <button value="cancel" class="btn btn-ghost">Keep running</button>
+        <button value="ok"     class="btn btn-primary">Turn off</button>
+      </menu>
+    </form>
+  </dialog>
 
   <section id="inmail-section" class="message-section" hidden>
     <h3>InMail</h3>
