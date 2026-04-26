@@ -521,12 +521,25 @@ async function onMarkPendingStage(stage) {
     const now = Date.now();
     const reviewMs = Number(active.reviewWindowMs) ||
                      Number(settings.reviewWindowMs) || 2500;
-    const newExpiry = nextExpiryFor(stage, now, { settings, reviewMs });
+    let newExpiry = nextExpiryFor(stage, now, { settings, reviewMs });
+    // Canary cycles spend their await_success stage waiting for the user to
+    // click Send manually. The default 20s TTL is faster than a human can
+    // notice the cue and click — extend to 90s (longer than the CS's 60s
+    // verifySendSuccess timeout, so the CS gets to fail with a real signal
+    // instead of being yanked by the watchdog).
+    if (active.canary && stage === 'await_success') {
+      newExpiry = now + 90_000;
+    }
     result = { ok: true };
     return {
       pendingFill: { ...active, stage, expiresAt: newExpiry, stageEnteredAt: now }
     };
   });
+
+  // Push so the popup status pill + toolbar badge update in real time as the
+  // CS walks the pipeline. Without this the badge stays at "ON" through the
+  // whole cycle and the canary "WAIT" cue never appears.
+  if (result.ok) pushStateUpdate().catch(() => {});
 
   return result;
 }
@@ -587,6 +600,7 @@ async function pushStateUpdate() {
  * ASCII-only to render uniformly across macOS / Windows / Linux:
  *   blank         — auto off
  *   "DRY" amber   — dry-run
+ *   "WAIT" amber  — canary cycle, waiting for user to click Send manually
  *   "PAU" amber   — paused (user) or backoff (errors)
  *   "ERR" red     — last cycle errored
  *   "N" teal      — auto on, N = today's confirmed sends
@@ -607,6 +621,17 @@ async function updateBadge(state) {
   if (state.lastErrorCode) {
     await chrome.action.setBadgeText({ text: 'ERR' });
     await chrome.action.setBadgeBackgroundColor({ color: '#ff6b6b' });
+    return;
+  }
+  // Canary cycle in the manual-click window — make it visually loud so the
+  // user notices even when the popup is closed.
+  const pf = state.pendingFill;
+  if (pf && pf.canary && (
+        pf.stage === 'await_send_click' ||
+        pf.stage === 'await_modal' ||
+        pf.stage === 'await_success')) {
+    await chrome.action.setBadgeText({ text: 'WAIT' });
+    await chrome.action.setBadgeBackgroundColor({ color: '#ffb347' });
     return;
   }
   if (mode === 'dry_run') {
