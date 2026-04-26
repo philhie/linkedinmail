@@ -317,6 +317,25 @@ async function runRecruiterFill(pending) {
       return;
     }
     await sleep(300);
+
+    // LinkedIn Recruiter recently added a separate subject input for the
+    // follow-up message ("Betreff eingeben" — required to send). When a
+    // second subject input is present, fill it with the same subject as
+    // the main InMail. Follow-ups are continuations in the same thread, so
+    // reusing the subject is correct (and matches what a human would type).
+    if (subject) {
+      const allSubjectInputs = document.querySelectorAll(SELECTORS.composerSubject);
+      if (allSubjectInputs.length >= 2) {
+        const followUpSubjectInput = /** @type {HTMLInputElement} */ (
+          allSubjectInputs[allSubjectInputs.length - 1]
+        );
+        const cur = followUpSubjectInput.value || '';
+        if (!cur.trim()) {
+          setInputValue(followUpSubjectInput, subject);
+        }
+      }
+    }
+
     insertIntoQuill(followUpEditor, pending.followUp);
   }
 
@@ -640,6 +659,20 @@ function verifyComposerStateBeforeSend(pending, bodyEditor, composerScope) {
                  followUpEditor.textContent || '').trim();
     if (got.length < Math.floor(fuExpected.length * 0.8)) {
       return { ok: false, code: 'composer_state_invalid', detail: 'followup_short' };
+    }
+    // Recruiter requires a follow-up subject when the section is open. If a
+    // second subject input is visible and empty, refuse to send — the form
+    // is incomplete and LinkedIn will reject it (or worse, send with a
+    // missing field that violates our intent).
+    const subjectInputs = composerScope.querySelectorAll(SELECTORS.composerSubject);
+    if (subjectInputs.length >= 2) {
+      const followUpSubject = /** @type {HTMLInputElement} */ (
+        subjectInputs[subjectInputs.length - 1]
+      );
+      const subjectGot = String(followUpSubject.value || '').trim();
+      if (!subjectGot) {
+        return { ok: false, code: 'composer_state_invalid', detail: 'followup_subject_missing' };
+      }
     }
   }
 
