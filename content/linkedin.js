@@ -475,12 +475,19 @@ async function runAutoSendPipeline(pending, bodyEditor, dryRun, canary) {
   }
 
   // ---------------- Live click ----------------
-  // Click the Send button. We capture the composer scope and button refs
-  // BEFORE the click so verifySendSuccess can watch the right targets even
-  // after LinkedIn tears down the composer.
+  // CRITICAL ordering: arm the success observer BEFORE clicking. LinkedIn's
+  // toast appears within ~1s of click and may disappear within ~3s, well
+  // before the modal-handling step finishes. Setting up the observer after
+  // the modal wait would miss the toast event entirely (this caused
+  // send_success_not_detected after every real send during stage D).
   const sendButtonEl = sendBtn.button;
   const label = (sendButtonEl.getAttribute('aria-label') ||
                  sendButtonEl.innerText || '').trim();
+  const successPromise = verifySendSuccess(
+    { composerScope, sendButton: sendButtonEl },
+    TIMINGS.successSignalMs
+  );
+
   log(`auto: clicking Send button (label="${label}", row=${pending.row})`);
   try {
     sendButtonEl.click();
@@ -491,6 +498,7 @@ async function runAutoSendPipeline(pending, bodyEditor, dryRun, canary) {
   }
 
   // Stage: await_modal — short window for any "use 1 credit" confirmation.
+  // Runs in parallel with the already-armed success observer.
   if (!(await tryMarkStage('await_modal'))) return;
   const modalResult = await handleSendConfirmModal(TIMINGS.sendModalWaitMs);
   if (modalResult.shown && !modalResult.confirmed) {
@@ -500,12 +508,9 @@ async function runAutoSendPipeline(pending, bodyEditor, dryRun, canary) {
   }
   if (modalResult.shown) log('auto: confirmation modal appeared and was confirmed');
 
-  // Stage: await_success — observe toast / composer-removed / button-gone.
+  // Stage: await_success — await the observer that's been running since click.
   if (!(await tryMarkStage('await_success'))) return;
-  const result = await verifySendSuccess(
-    { composerScope, sendButton: sendButtonEl },
-    TIMINGS.successSignalMs
-  );
+  const result = await successPromise;
   log('auto: send-success result', result);
 
   // Tell SW. It interprets classification:
@@ -767,16 +772,27 @@ function verifySendSuccess(ctx, timeoutMs) {
       resolve(val);
     };
 
-    // Toast observer
-    toastObserver = new MutationObserver(() => {
+    // Helper to scan for an existing positive/negative toast right now.
+    // MutationObservers only fire on FUTURE mutations, so without this scan
+    // a toast that was already in the DOM when we started observing would
+    // be invisible to us. This matters most when verifySendSuccess is armed
+    // a tick or two after the actual click — the toast may have already
+    // appeared.
+    const scanExistingToasts = () => {
       const toasts = document.querySelectorAll(SELECTORS.successToast);
       for (const t of toasts) {
         const text = (t.textContent || '').trim();
         if (!text) continue;
         const cls = classifyToastInline(text);
-        if (cls === 'positive') return finish({ source: 'toast', text, classification: 'positive' });
-        if (cls === 'negative') return finish({ source: 'toast', text, classification: 'negative' });
+        if (cls === 'positive') { finish({ source: 'toast', text, classification: 'positive' }); return true; }
+        if (cls === 'negative') { finish({ source: 'toast', text, classification: 'negative' }); return true; }
       }
+      return false;
+    };
+
+    // Toast observer
+    toastObserver = new MutationObserver(() => {
+      scanExistingToasts();
     });
     try { toastObserver.observe(document.body, { childList: true, subtree: true, characterData: true }); }
     catch (_e) { /* document.body may not exist briefly during nav */ }
@@ -790,6 +806,13 @@ function verifySendSuccess(ctx, timeoutMs) {
       });
       try { composerObserver.observe(ctx.composerScope.parentNode, { childList: true }); }
       catch (_e) {}
+    }
+
+    // Initial sync scan: catch toasts/composer-removal that already happened
+    // before we got here. Resolve immediately if any are present.
+    if (scanExistingToasts()) return;
+    if (ctx.composerScope && !document.contains(ctx.composerScope)) {
+      return finish({ source: 'composer_removed', classification: 'composer_removed' });
     }
 
     // Send-button-removed polling. We deliberately do NOT treat `disabled`
